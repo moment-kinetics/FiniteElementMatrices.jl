@@ -10,13 +10,13 @@ This package computes matrices of the following form.
 A_{ij} = \int^{x_u}_{x_l} P_i(x) Q_j(x) x^p d x,
 ```
 where $`P_i`$ and $`Q_i`$ are from the set of Lagrange polynomials basis
-functions (and their first derivatives) used for  
+functions (and their first derivatives) used for
 $`C^0`$ continuous Galerkin
 finite element models, $`x_u`$ and $`x_l`$
 are the upper and lower limits of the element in the
 coordinate $`x`$, and $`p`$ is an integer.
 
-The basis functions we use here are 
+The basis functions we use here are
 ```math
 \Phi(x) = \Theta(x-x_l)\Theta(x_u - x)l_j(z(x)),
 ```
@@ -33,7 +33,7 @@ is required for the problem of interest.
 To compute the matrix $`A_{ij}`$, we use the reference coordinate
 $`z`$ to write
 ```math
-A_{ij} = \int^{1}_{-1} P_i(z) Q_j(z) (s z + c)^p d z. 
+A_{ij} = \int^{1}_{-1} P_i(z) Q_j(z) (s z + c)^p d z.
 ```
 We can also compute nonlinear matrices which have the form
 ```math
@@ -45,8 +45,8 @@ N_{ijk} = \int^{x_u}_{x_l} P_i(x) Q_j(x) R_k(x) x^p d x = \int^{1}_{-1} P_i(z) Q
 To create these matrices, the user must supply the key grid
 information for the element of interest, i.e., the set
 $`\{z_j\}`$, and the factors $`s`$ and $`c`$.
-This is done in the following function call, defining a 
-type `element_coordinates`. We use [FastGaussQuadrature](https://juliaapproximation.github.io/FastGaussQuadrature.jl/stable/)
+This is done in the following function call, defining a
+type `ElementCoordinates`. We use [FastGaussQuadrature](https://juliaapproximation.github.io/FastGaussQuadrature.jl/stable/)
 to make a set of reference nodes, but any set of nodes with good
 interpolation properties would be adequate.
 ```
@@ -57,9 +57,9 @@ x, w = gausslobatto(ngrid)
 scale = 1.0 # change these to match the size and position of elements in the problem
 shift = 0.0
 # the coordinate information
-coordinate = element_coordinates(x,scale,shift)
+coordinate = ElementCoordinates(x,scale,shift)
 ```
-Once an instance of `element_coordinates` is available, 
+Once an instance of `ElementCoordinates` is available,
 we can compute the higher-order finite element matrices
 as follows. We use the enums
 `lagrange_x`, and `d_lagrange_dx` and the integer `p` to choose the form of the desired matrix. For a mass matrix, with
@@ -67,13 +67,13 @@ Jacobian $`1`$ for example,
 we can use the following commands.
 ```
 using FiniteElementMatrices
-coordinate = element_coordinates(x,scale,shift)
-M = finite_element_matrix(lagrange_x,lagrange_x,0,coordinate)    
+coordinate = ElementCoordinates(x,scale,shift)
+M = finite_element_matrix(lagrange_x,lagrange_x,0,coordinate)
 ```
 For a stiffness matrix describing a second derivative, we could
 use the following.
 ```
-K = -finite_element_matrix(d_lagrange_dx,d_lagrange_dx,0,coordinate)    
+K = -finite_element_matrix(d_lagrange_dx,d_lagrange_dx,0,coordinate)
 ```
 The second derivative of a function $`f`$ can be found by solving the system
 ```math
@@ -86,8 +86,8 @@ in $`x`$.
 For a system with Jacobian $`x`$ (e.g., cylindrical polar coordinates), we could form the appropriate matrices to evaluate
 the 1D, radial Laplacian via
 ```
-coordinate = element_coordinates(x,scale,shift)
-M = finite_element_matrix(lagrange_x,lagrange_x,1,coordinate)    
+coordinate = ElementCoordinates(x,scale,shift)
+M = finite_element_matrix(lagrange_x,lagrange_x,1,coordinate)
 K = -finite_element_matrix(d_lagrange_dx,d_lagrange_dx,1,coordinate)
 ```
 i.e.,
@@ -96,7 +96,7 @@ i.e.,
 ```
 Finally, we can form a nonlinear stiffness matrix by inserting an extra enum argument, as follows.
 ```
-N = finite_element_matrix(lagrange_x,lagrange_x,lagrange_x,1,coordinate)    
+N = finite_element_matrix(lagrange_x,lagrange_x,lagrange_x,1,coordinate)
 ```
 
 # Examples
