@@ -172,4 +172,79 @@ function finite_element_matrix(
     return matrix
 end
 
+function finite_element_matrix(
+    fn1_x1_type::LagrangeFunctionType,
+    fn2_x1_type::LagrangeFunctionType,
+    power_x1::Int64,
+    coordinate_x1::ElementCoordinates,
+    fn1_x2_type::LagrangeFunctionType,
+    fn2_x2_type::LagrangeFunctionType,
+    power_x2::Int64,
+    coordinate_x2::ElementCoordinates
+    )
+    # coordinate x1 data
+    lpoly_data_x1 = coordinate_x1.lpoly_data
+    ngrid_x1 = length(coordinate_x1.lpoly_data.x_nodes)
+    scale_x1 = coordinate_x1.scale
+    shift_x1 = coordinate_x1.shift
+    # coordinate x2 data
+    lpoly_data_x2 = coordinate_x2.lpoly_data
+    ngrid_x2 = length(coordinate_x2.lpoly_data.x_nodes)
+    scale_x2 = coordinate_x2.scale
+    shift_x2 = coordinate_x2.shift
+    # the finite element array to be returned
+    matrix = zeros(Float64,ngrid_x1,ngrid_x2,ngrid_x1,ngrid_x2)
+    # the function objects for the required polynomials
+    lagrange11 = select_lagrange_function(fn1_x1_type)
+    lagrange12 = select_lagrange_function(fn1_x2_type)
+    lagrange21 = select_lagrange_function(fn2_x1_type)
+    lagrange22 = select_lagrange_function(fn2_x2_type)
+    # the normalisation factors due to v = scale * x + shift
+    prefactor11 = select_lagrange_prefactor(fn1_x1_type,scale_x1)
+    prefactor12 = select_lagrange_prefactor(fn1_x2_type,scale_x2)
+    prefactor21 = select_lagrange_prefactor(fn2_x1_type,scale_x1)
+    prefactor22 = select_lagrange_prefactor(fn2_x2_type,scale_x2)
+    # nquad chosen for exact results
+    nquad_x1 = ngrid_x1 + power_x1
+    zz_x1, wz_x1 = gausslegendre(nquad_x1)
+    nquad_x2 = ngrid_x2 + power_x2
+    zz_x2, wz_x2 = gausslegendre(nquad_x2)
+    # compute integral
+    # int P_i(z) Q_j(z) poly(z) s d z
+    # with poly(z) = (s z + c)^power
+    # s = scale, c = shift and
+    # P_i(z), Q_i(z) in [l_i(z), (1/s) d l_i(z) / d z]
+    for jx2 in 1:ngrid_x2
+        jx2_lpoly_data = lpoly_data_x2.lpoly_data[jx2]
+        for jx1 in 1:ngrid_x1
+            jx1_lpoly_data = lpoly_data_x1.lpoly_data[jx1]
+            for ix2 in 1:ngrid_x2
+                ix2_lpoly_data = lpoly_data_x2.lpoly_data[ix2]
+                for ix1 in 1:ngrid_x1
+                    ix1_lpoly_data = lpoly_data_x1.lpoly_data[ix1]
+                    for lx2 in 1:nquad_x2
+                        zzl2 = zz_x2[lx2]
+                        polyz2 = get_polyz(power_x2,scale_x2,shift_x2,zzl2)
+                        wgt2 = scale_x2*wz_x2[lx2]
+                        lagrange_factor2 = (prefactor12*lagrange12(ix2_lpoly_data,zzl2)*
+                                               prefactor22*lagrange22(jx2_lpoly_data,zzl2))
+                        for lx1 in 1:nquad_x1
+                            zzl1 = zz_x1[lx1]
+                            polyz1 = get_polyz(power_x1,scale_x1,shift_x1,zzl1)
+                            wgt1 = scale_x1*wz_x1[lx1]
+                            lagrange_factor1 = (prefactor11*lagrange11(ix1_lpoly_data,zzl1)*
+                                               prefactor21*lagrange21(jx1_lpoly_data,zzl1))
+                            matrix[ix1,ix2,jx1,jx2] += (wgt1*polyz1*wgt2*polyz2*
+                                                        lagrange_factor1*
+                                                        lagrange_factor2)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return matrix
+end
+
+
 end

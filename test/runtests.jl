@@ -350,3 +350,4 @@ end
 
 using .FiniteElementMatricesTests
 FiniteElementMatricesTests.runtests()
+include(joinpath(@__DIR__,"2DMatricesTest.jl"))
