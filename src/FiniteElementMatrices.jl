@@ -10,14 +10,14 @@ using FastGaussQuadrature: gausslegendre
 export lagrange_x,
        d_lagrange_dx,
        finite_element_matrix,
-       element_coordinates
+       ElementCoordinates
 
-@enum lagrange_function_type begin
+@enum LagrangeFunctionType begin
     lagrange_x
     d_lagrange_dx
 end
 
-struct element_coordinates
+struct ElementCoordinates
     # precomputed data for calculating
     # the Lagrange polynomials, including
     # the reference x nodes
@@ -37,7 +37,7 @@ struct element_coordinates
     `shift` : normalisation factor, such that the physical coordinate
             `v = `scale * x_nodes + shift` in this element.
     """
-    function element_coordinates(x_nodes::AbstractArray{Float64,1},
+    function ElementCoordinates(x_nodes::AbstractArray{Float64,1},
                                     scale::Float64,
                                     shift::Float64)
         # initialise and save Lagrange polynomial
@@ -49,7 +49,7 @@ struct element_coordinates
     end
 end
 
-function select_lagrange_function(fn_type::lagrange_function_type)
+function select_lagrange_function(fn_type::LagrangeFunctionType)
     if fn_type == lagrange_x
         func = lagrange_poly
     elseif fn_type == d_lagrange_dx
@@ -58,7 +58,7 @@ function select_lagrange_function(fn_type::lagrange_function_type)
     return func
 end
 
-function select_lagrange_prefactor(fn_type::lagrange_function_type,
+function select_lagrange_prefactor(fn_type::LagrangeFunctionType,
                                     scale::Float64)
     if fn_type == lagrange_x
         prefactor = 1.0
@@ -82,10 +82,10 @@ function get_polyz(power::Int64,
 end
 
 function finite_element_matrix(
-    fn1_type::lagrange_function_type,
-    fn2_type::lagrange_function_type,
+    fn1_type::LagrangeFunctionType,
+    fn2_type::LagrangeFunctionType,
     power::Int64,
-    coordinate::element_coordinates
+    coordinate::ElementCoordinates
     )
     lpoly_data = coordinate.lpoly_data
     ngrid = length(coordinate.lpoly_data.x_nodes)
@@ -124,11 +124,11 @@ function finite_element_matrix(
 end
 
 function finite_element_matrix(
-    fn1_type::lagrange_function_type,
-    fn2_type::lagrange_function_type,
-    fn3_type::lagrange_function_type,
+    fn1_type::LagrangeFunctionType,
+    fn2_type::LagrangeFunctionType,
+    fn3_type::LagrangeFunctionType,
     power::Int64,
-    coordinate::element_coordinates
+    coordinate::ElementCoordinates
     )
     lpoly_data = coordinate.lpoly_data
     ngrid = length(coordinate.lpoly_data.x_nodes)

@@ -4,7 +4,7 @@ using Test: @testset, @test
 using FiniteElementMatrices: lagrange_x,
                              d_lagrange_dx,
                              finite_element_matrix,
-                             element_coordinates
+                             ElementCoordinates
 using FastGaussQuadrature: gausslobatto, gaussradau, gausslegendre
 using LinearAlgebra: lu, ldiv!, mul!
 
@@ -45,7 +45,7 @@ function test_first_derivative(;nodes::node_type=GLL,
     x = reference_nodes(nodes,ngrid)
     scale = 0.5*(y1-y0)
     shift = 0.5*(y0+y1)
-    coordinate = element_coordinates(x,scale,shift)
+    coordinate = ElementCoordinates(x,scale,shift)
     M = finite_element_matrix(lagrange_x,lagrange_x,0,coordinate)
     P = finite_element_matrix(lagrange_x,d_lagrange_dx,pp,coordinate)
     S = finite_element_matrix(d_lagrange_dx,lagrange_x,pp,coordinate)
@@ -86,7 +86,7 @@ function test_first_derivative_nonlinear_operators(
     x = reference_nodes(nodes,ngrid)
     scale = 0.5*(y1-y0)
     shift = 0.5*(y0+y1)
-    coordinate = element_coordinates(x,scale,shift)
+    coordinate = ElementCoordinates(x,scale,shift)
     M = finite_element_matrix(lagrange_x,lagrange_x,0,coordinate)
     Y100 = finite_element_matrix(d_lagrange_dx,lagrange_x,lagrange_x,pp,coordinate)
     Y010 = finite_element_matrix(lagrange_x,d_lagrange_dx,lagrange_x,pp,coordinate)
@@ -131,7 +131,7 @@ function test_second_derivative(;nodes::node_type=GLL,
     x = reference_nodes(nodes,ngrid)
     scale = 0.5*(y1-y0)
     shift = 0.5*(y0+y1)
-    coordinate = element_coordinates(x,scale,shift)
+    coordinate = ElementCoordinates(x,scale,shift)
     M = finite_element_matrix(lagrange_x,lagrange_x,0,coordinate)
     S = -finite_element_matrix(d_lagrange_dx,lagrange_x,0,coordinate)
     K = -finite_element_matrix(d_lagrange_dx,d_lagrange_dx,0,coordinate)
@@ -189,7 +189,7 @@ function test_nonlinear_operators(;nodes::node_type=GLL,
     x = reference_nodes(nodes,ngrid)
     scale = 0.5*(y1-y0)
     shift = 0.5*(y0+y1)
-    coordinate = element_coordinates(x,scale,shift)
+    coordinate = ElementCoordinates(x,scale,shift)
     M = finite_element_matrix(lagrange_x,lagrange_x,0,coordinate)
     Y000 = finite_element_matrix(lagrange_x,lagrange_x,lagrange_x,0,coordinate)
     Y100 = finite_element_matrix(d_lagrange_dx,lagrange_x,lagrange_x,0,coordinate)
