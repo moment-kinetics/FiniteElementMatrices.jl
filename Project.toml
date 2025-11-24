@@ -7,7 +7,7 @@ FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
 LagrangePolynomials = "fb83b288-ce1a-45f4-939e-c34c34051e49"
 
 [sources]
-LagrangePolynomials = {rev = "main", url = "https://github.com/moment-kinetics/LagrangePolynomials"}
+LagrangePolynomials = {rev = "main", url = "https://github.com/moment-kinetics/LagrangePolynomials.jl.git"}
 
 [compat]
 LagrangePolynomials = "0.1.0"

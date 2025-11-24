@@ -4,7 +4,7 @@ module FiniteElementMatrices
 
 using LagrangePolynomials: lagrange_poly,
                            lagrange_poly_derivative,
-                           lagrange_poly_data
+                           LagrangePolyData
 using FastGaussQuadrature: gausslegendre
 
 export lagrange_x,
@@ -21,7 +21,7 @@ struct element_coordinates
     # precomputed data for calculating
     # the Lagrange polynomials, including
     # the reference x nodes
-    lpoly_data::lagrange_poly_data
+    lpoly_data::LagrangePolyData
     # scale factor s for transform
     # v = s x + c
     # from reference grid x on [-1,1] (or (-1,1], [-1,1), (-1,1))
@@ -42,7 +42,7 @@ struct element_coordinates
                                     shift::Float64)
         # initialise and save Lagrange polynomial
         # data for this 1D element.
-        lpoly_data = lagrange_poly_data(x_nodes)
+        lpoly_data = LagrangePolyData(x_nodes)
         return new(lpoly_data,
                     scale,
                     shift)
