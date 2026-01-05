@@ -68,24 +68,25 @@ function select_lagrange_prefactor(fn_type::LagrangeFunctionType,
     return prefactor
 end
 
-function get_polyz(power::Int64,
-                    scale::Float64,
-                    shift::Float64,
-                    zz::Float64)
-    polyz = 0.0
-    for q in 0:power
-        polyz += (binomial(power,q)*
-                    ((scale*zz)^q)*
-                    (shift^(power-q)))
-    end
-    return polyz
-end
-
 function finite_element_matrix(
     fn1_type::LagrangeFunctionType,
     fn2_type::LagrangeFunctionType,
     power::Int64,
     coordinate::ElementCoordinates
+    )
+    return finite_element_matrix(fn1_type, fn2_type, coordinate;
+                function_of_v=((v -> v^power)),
+                additional_quadrature_points=power)
+end
+
+function finite_element_matrix(
+    fn1_type::LagrangeFunctionType,
+    fn2_type::LagrangeFunctionType,
+    coordinate::ElementCoordinates;
+    # function of the "physical" coord v = s z + c
+    # rather than of the reference coordinate z on [-1,1]
+    function_of_v=((v -> 1.0))::Function,
+    additional_quadrature_points=0::Int64,
     )
     lpoly_data = coordinate.lpoly_data
     ngrid = length(coordinate.lpoly_data.x_nodes)
@@ -100,7 +101,7 @@ function finite_element_matrix(
     prefactor1 = select_lagrange_prefactor(fn1_type,scale)
     prefactor2 = select_lagrange_prefactor(fn2_type,scale)
     # nquad chosen for exact results for all power, ngrid
-    nquad = ngrid + power
+    nquad = ngrid + additional_quadrature_points
     zz, wz = gausslegendre(nquad)
     # compute integral
     # int P_i(z) Q_j(z) poly(z) s d z
@@ -113,8 +114,8 @@ function finite_element_matrix(
             ith_lpoly_data = lpoly_data.lpoly_data[i]
             for l in 1:nquad
                 zzl = zz[l]
-                polyz = get_polyz(power,scale,shift,zzl)
-                matrix[i,j] += (scale*wz[l]*polyz*
+                funcz = function_of_v(scale*zzl+shift)::Float64
+                matrix[i,j] += (scale*wz[l]*funcz*
                            prefactor1*lagrange1(ith_lpoly_data,zzl)*
                            prefactor2*lagrange2(jth_lpoly_data,zzl))
             end
@@ -129,6 +130,20 @@ function finite_element_matrix(
     fn3_type::LagrangeFunctionType,
     power::Int64,
     coordinate::ElementCoordinates
+    )
+    return finite_element_matrix(fn1_type, fn2_type, fn3_type,
+                coordinate; function_of_v=((v -> v^power)),
+                additional_quadrature_points=power)
+end
+function finite_element_matrix(
+    fn1_type::LagrangeFunctionType,
+    fn2_type::LagrangeFunctionType,
+    fn3_type::LagrangeFunctionType,
+    coordinate::ElementCoordinates;
+    # function of the "physical" coord v = s z + c
+    # rather than of the reference coordinate z on [-1,1]
+    function_of_v=((v -> 1.0))::Function,
+    additional_quadrature_points=0::Int64,
     )
     lpoly_data = coordinate.lpoly_data
     ngrid = length(coordinate.lpoly_data.x_nodes)
@@ -145,7 +160,7 @@ function finite_element_matrix(
     prefactor2 = select_lagrange_prefactor(fn2_type,scale)
     prefactor3 = select_lagrange_prefactor(fn3_type,scale)
     # nquad chosen for exact results for all power, ngrid
-    nquad = 2*ngrid + power
+    nquad = 2*ngrid + additional_quadrature_points
     zz, wz = gausslegendre(nquad)
     # compute integral
     # int P_i(z) Q_j(z) S_k(z) poly(z) d z
@@ -160,8 +175,8 @@ function finite_element_matrix(
                 ith_lpoly_data = lpoly_data.lpoly_data[i]
                 for l in 1:nquad
                     zzl = zz[l]
-                    polyz = get_polyz(power,scale,shift,zzl)
-                    matrix[i,j,k] += (scale*wz[l]*polyz*
+                    funcz = function_of_v(scale*zzl+shift)
+                    matrix[i,j,k] += (scale*wz[l]*funcz*
                             prefactor1*lagrange1(ith_lpoly_data,zzl)*
                             prefactor2*lagrange2(jth_lpoly_data,zzl)*
                             prefactor3*lagrange3(kth_lpoly_data,zzl))
