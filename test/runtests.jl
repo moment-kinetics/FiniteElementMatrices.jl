@@ -303,7 +303,7 @@ function test_nonpolynomial_kernel(;nodes::node_type=GLL,
     shift = 0.5*(y0+y1)
     coordinate = ElementCoordinates(x,scale,shift)
     M_with_kernel = finite_element_matrix(lagrange_x,lagrange_x,coordinate,
-            function_of_v=jacobian,additional_quadrature_points=5)
+            kernel_function=jacobian,additional_quadrature_points=5)
     M = finite_element_matrix(lagrange_x,lagrange_x,0,coordinate)
     # function to test
     f = Array{Float64,1}(undef,ngrid)
@@ -344,7 +344,7 @@ function test_nonlinear_operator_nonpolynomial_kernel(;nodes::node_type=GLL,
     shift = 0.5*(y0+y1)
     coordinate = ElementCoordinates(x,scale,shift)
     Y000_with_kernel = finite_element_matrix(lagrange_x,lagrange_x,lagrange_x,coordinate,
-            function_of_v=jacobian,additional_quadrature_points=5)
+            kernel_function=jacobian,additional_quadrature_points=5)
     M = finite_element_matrix(lagrange_x,lagrange_x,0,coordinate)
     # function to test
     u = Array{Float64,1}(undef,ngrid)

@@ -75,7 +75,7 @@ function finite_element_matrix(
     coordinate::ElementCoordinates
     )
     return finite_element_matrix(fn1_type, fn2_type, coordinate;
-                function_of_v=((v -> v^power)),
+                kernel_function=((v -> v^power)),
                 additional_quadrature_points=power)
 end
 
@@ -85,7 +85,7 @@ function finite_element_matrix(
     coordinate::ElementCoordinates;
     # function of the "physical" coord v = s z + c
     # rather than of the reference coordinate z on [-1,1]
-    function_of_v=((v -> 1.0))::Function,
+    kernel_function=((v -> 1.0))::Function,
     additional_quadrature_points=0::Int64,
     )
     lpoly_data = coordinate.lpoly_data
@@ -114,7 +114,7 @@ function finite_element_matrix(
             ith_lpoly_data = lpoly_data.lpoly_data[i]
             for l in 1:nquad
                 zzl = zz[l]
-                funcz = function_of_v(scale*zzl+shift)::Float64
+                funcz = kernel_function(scale*zzl+shift)::Float64
                 matrix[i,j] += (scale*wz[l]*funcz*
                            prefactor1*lagrange1(ith_lpoly_data,zzl)*
                            prefactor2*lagrange2(jth_lpoly_data,zzl))
@@ -132,7 +132,7 @@ function finite_element_matrix(
     coordinate::ElementCoordinates
     )
     return finite_element_matrix(fn1_type, fn2_type, fn3_type,
-                coordinate; function_of_v=((v -> v^power)),
+                coordinate; kernel_function=((v -> v^power)),
                 additional_quadrature_points=power)
 end
 function finite_element_matrix(
@@ -142,7 +142,7 @@ function finite_element_matrix(
     coordinate::ElementCoordinates;
     # function of the "physical" coord v = s z + c
     # rather than of the reference coordinate z on [-1,1]
-    function_of_v=((v -> 1.0))::Function,
+    kernel_function=((v -> 1.0))::Function,
     additional_quadrature_points=0::Int64,
     )
     lpoly_data = coordinate.lpoly_data
@@ -175,7 +175,7 @@ function finite_element_matrix(
                 ith_lpoly_data = lpoly_data.lpoly_data[i]
                 for l in 1:nquad
                     zzl = zz[l]
-                    funcz = function_of_v(scale*zzl+shift)
+                    funcz = kernel_function(scale*zzl+shift)
                     matrix[i,j,k] += (scale*wz[l]*funcz*
                             prefactor1*lagrange1(ith_lpoly_data,zzl)*
                             prefactor2*lagrange2(jth_lpoly_data,zzl)*
