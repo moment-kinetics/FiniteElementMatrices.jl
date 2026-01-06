@@ -35,12 +35,15 @@ is required for the problem of interest.
 To compute the matrix $`A_{ij}`$, we use the reference coordinate
 $`z`$ to write
 ```math
-A_{ij} = \int^{1}_{-1} P_i(z) Q_j(z) \rho(s z + c) d z.
+A_{ij} = \int^{1}_{-1} S_i(z) T_j(z) \rho(s z + c) d z,
 ```
+where $`S_i(z)`$, $`T_i(z)`$ may be either of $`l_i(z)`$ or $`(1/s)d l_i(z)/d z`$.
 We can also compute nonlinear matrices which have the form
 ```math
-N_{ijk} = \int^{x_u}_{x_l} P_i(x) Q_j(x) R_k(x) x^p d x = \int^{1}_{-1} P_i(z) Q_j(z) Q_k(z) \rho(s z + c) d z.
+N_{ijk} = \int^{x_u}_{x_l} P_i(x) Q_j(x) R_k(x) \rho(x) d x = \int^{1}_{-1} S_i(z) T_j(z) U_k(z) \rho(s z + c) d z.
 ```
+where $`R_i(x)`$ may be either of $`\Phi(x)`$ or $`d\Phi/dx`$ and
+$`U_i(z)`$ may be either of $`l_i(z)`$ or $`(1/s)d l_i(z)/d z`$.
 
 # Usage
 
