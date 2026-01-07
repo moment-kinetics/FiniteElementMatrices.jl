@@ -290,6 +290,95 @@ function test_nonlinear_operators(;nodes::node_type=GLL,
     @test maxerr < atol
 end
 
+function test_nonpolynomial_kernel(;nodes::node_type=GLL,
+                            ngrid::Int64=20,
+                            func::Function=(x -> sin(x)),
+                            jacobian::Function=(x -> exp(-x)),
+                            additional_quadrature_points::Int64 = 5,
+                            y0::Float64=-1.0,
+                            y1::Float64=1.0,
+                            atol::Float64=2.0e-13)
+    x = reference_nodes(nodes,ngrid)
+    scale = 0.5*(y1-y0)
+    shift = 0.5*(y0+y1)
+    coordinate = ElementCoordinates(x,scale,shift)
+    M_with_kernel = finite_element_matrix(lagrange_x,lagrange_x,coordinate,
+            kernel_function=jacobian,additional_quadrature_points=5)
+    M = finite_element_matrix(lagrange_x,lagrange_x,0,coordinate)
+    # function to test
+    f = Array{Float64,1}(undef,ngrid)
+    h = Array{Float64,1}(undef,ngrid)
+    dummy = Array{Float64,1}(undef,ngrid)
+    result = Array{Float64,1}(undef,ngrid)
+    err = Array{Float64,1}(undef,ngrid)
+    for i in 1:ngrid
+        # change to physical coordinate y
+        # from reference coordinate x
+        y = scale*x[i] + shift
+        f[i] = func(y)
+        h[i] = jacobian(y)*func(y)
+    end
+    luM = lu(M)
+    mul!(dummy,M_with_kernel,f)
+    ldiv!(result,luM,dummy)
+    @. err = result - h
+    # println(f)
+    # println(h)
+    # println(result)
+    maxerr = maximum(abs.(err))
+    @test maxerr < atol
+    #println(maxerr)
+end
+
+function test_nonlinear_operator_nonpolynomial_kernel(;nodes::node_type=GLL,
+                            ngrid::Int64=20,
+                            func1::Function=(x -> sin(x)),
+                            func2::Function=(x -> x^2),
+                            jacobian::Function=( x -> exp(-x)),
+                            additional_quadrature_points::Int64 = 5,
+                            y0::Float64=-1.0,
+                            y1::Float64=1.0,
+                            atol::Float64=2.0e-13)
+    x = reference_nodes(nodes,ngrid)
+    scale = 0.5*(y1-y0)
+    shift = 0.5*(y0+y1)
+    coordinate = ElementCoordinates(x,scale,shift)
+    Y000_with_kernel = finite_element_matrix(lagrange_x,lagrange_x,lagrange_x,coordinate,
+            kernel_function=jacobian,additional_quadrature_points=5)
+    M = finite_element_matrix(lagrange_x,lagrange_x,0,coordinate)
+    # function to test
+    u = Array{Float64,1}(undef,ngrid)
+    v = Array{Float64,1}(undef,ngrid)
+    h = Array{Float64,1}(undef,ngrid)
+    dummy = Array{Float64,1}(undef,ngrid)
+    result = Array{Float64,1}(undef,ngrid)
+    err = Array{Float64,1}(undef,ngrid)
+    for i in 1:ngrid
+        # change to physical coordinate y
+        # from reference coordinate x
+        y = scale*x[i] + shift
+        u[i] = func1(y)
+        v[i] = func2(y)
+        h[i] = jacobian(y)*func1(y)*func2(y)
+    end
+    luM = lu(M)
+    @. dummy = 0.0
+    for k in 1:ngrid
+        for j in 1:ngrid
+            for i in 1:ngrid
+                dummy[k] += Y000_with_kernel[i,j,k]*u[i]*v[j]
+            end
+        end
+    end
+    ldiv!(result,luM,dummy)
+    @. err = result - h
+    # println(h)
+    # println(result)
+    maxerr = maximum(abs.(err))
+    @test maxerr < atol
+    #println(maxerr)
+end
+
 function runtests()
     @testset "FiniteElementMatrices" begin
         println("test FiniteElementMatrices")
@@ -342,6 +431,15 @@ function runtests()
             test_nonlinear_operators(; nodes=nodes,
                                     y0 = -0.6, y1=1.0,
                                     ngrid=n)
+        end
+
+        println("test nonpolynomial kernels:")
+        nodes_list = [GLL, GLR, GLe]
+        for nodes in nodes_list
+            n = 20
+            println("    -- test: $(nodes) ngrid=$(n) trig")
+            test_nonpolynomial_kernel(; nodes=nodes, ngrid=n)
+            test_nonlinear_operator_nonpolynomial_kernel(; nodes=nodes, ngrid=n)
         end
     end
 end
