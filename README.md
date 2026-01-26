@@ -7,14 +7,16 @@ finite element models.
 
 This package computes matrices of the following form.
 ```math
-A_{ij} = \int^{x_u}_{x_l} P_i(x) Q_j(x) x^p d x,
+A_{ij} = \int^{x_u}_{x_l} P_i(x) Q_j(x) \rho(x) d x,
 ```
 where $`P_i`$ and $`Q_i`$ are from the set of Lagrange polynomials basis
 functions (and their first derivatives) used for
 $`C^0`$ continuous Galerkin
 finite element models, $`x_u`$ and $`x_l`$
 are the upper and lower limits of the element in the
-coordinate $`x`$, and $`p`$ is an integer.
+coordinate $`x`$, and $`\rho(x)`$ is a function. We provide an interface
+where the user can specify the function $`\rho(x)`$ as an argument, or
+the user can pass an integer $`p`$, in which case $`\rho(x) = x^p`$.
 
 The basis functions we use here are
 ```math
@@ -33,12 +35,15 @@ is required for the problem of interest.
 To compute the matrix $`A_{ij}`$, we use the reference coordinate
 $`z`$ to write
 ```math
-A_{ij} = \int^{1}_{-1} P_i(z) Q_j(z) (s z + c)^p d z.
+A_{ij} = \int^{1}_{-1} S_i(z) T_j(z) \rho(s z + c) s d z,
 ```
+where $`S_i(z)`$, $`T_i(z)`$ may be either of $`l_i(z)`$ or $`(1/s)d l_i(z)/d z`$.
 We can also compute nonlinear matrices which have the form
 ```math
-N_{ijk} = \int^{x_u}_{x_l} P_i(x) Q_j(x) R_k(x) x^p d x = \int^{1}_{-1} P_i(z) Q_j(z) Q_k(z) (s z + c)^p d z.
+N_{ijk} = \int^{x_u}_{x_l} P_i(x) Q_j(x) R_k(x) \rho(x) d x = \int^{1}_{-1} S_i(z) T_j(z) U_k(z) \rho(s z + c) s d z.
 ```
+where $`R_i(x)`$ may be either of $`\Phi(x)`$ or $`d\Phi/dx`$ and
+$`U_i(z)`$ may be either of $`l_i(z)`$ or $`(1/s)d l_i(z)/d z`$.
 
 # Usage
 
@@ -98,6 +103,17 @@ Finally, we can form a nonlinear stiffness matrix by inserting an extra enum arg
 ```
 N = finite_element_matrix(lagrange_x,lagrange_x,lagrange_x,1,coordinate)
 ```
+
+To specify an arbitrary kernel function $`\rho(x)`$, the following function call should be used
+```
+coordinate = ElementCoordinates(x,scale,shift)
+M = finite_element_matrix(lagrange_x,lagrange_x,coordinate,
+            kernel_function=(v -> rho(v)),additional_quadrature_points=n)
+```
+where we specify some function `rho(v)` to be the kernel, and we specify than `n` additional quadrature
+points should be used in addition to the number assumed from the size of the reference grid `x`.
+Note that `rho(v)` should be specified in terms of the physical coordinate including the scale and shift
+factors `v = scale * x + shift`, not in terms of the reference coordinate `x`.
 
 # Examples
 
