@@ -4,7 +4,8 @@ module FiniteElementMatrices
 
 using LagrangePolynomials: lagrange_poly,
                            lagrange_poly_derivative,
-                           LagrangePolyData
+                           LagrangePolyData,
+                           LagrangePolyDataBase
 using FastGaussQuadrature: gausslegendre
 
 export lagrange_x,
@@ -49,23 +50,15 @@ struct ElementCoordinates
     end
 end
 
-function select_lagrange_function(fn_type::LagrangeFunctionType)
+function select_lagrange_function(fn_type::LagrangeFunctionType,scale::Float64)
+    # including the normalisation factors due to v = scale * x + shift
     if fn_type == lagrange_x
-        func = lagrange_poly
+        func = ((lpoly_data::LagrangePolyDataBase,z::Float64) -> lagrange_poly(lpoly_data,z))
     elseif fn_type == d_lagrange_dx
-        func = lagrange_poly_derivative
+        # 1/scale due to scale in x in d l(z(x)) /d x
+        func = ((lpoly_data::LagrangePolyDataBase,z::Float64) -> (1.0/scale)*lagrange_poly_derivative(lpoly_data,z))
     end
     return func
-end
-
-function select_lagrange_prefactor(fn_type::LagrangeFunctionType,
-                                    scale::Float64)
-    if fn_type == lagrange_x
-        prefactor = 1.0
-    elseif fn_type == d_lagrange_dx
-        prefactor = 1.0/scale
-    end
-    return prefactor
 end
 
 function finite_element_matrix(
@@ -95,11 +88,8 @@ function finite_element_matrix(
     # the finite element array to be returned
     matrix = zeros(Float64,ngrid,ngrid)
     # the function objects for the required polynomials
-    lagrange1 = select_lagrange_function(fn1_type)
-    lagrange2 = select_lagrange_function(fn2_type)
-    # the normalisation factors due to v = scale * x + shift
-    prefactor1 = select_lagrange_prefactor(fn1_type,scale)
-    prefactor2 = select_lagrange_prefactor(fn2_type,scale)
+    lagrange1 = select_lagrange_function(fn1_type,scale)
+    lagrange2 = select_lagrange_function(fn2_type,scale)
     # nquad chosen for exact results for all power, ngrid
     nquad = ngrid + additional_quadrature_points
     zz, wz = gausslegendre(nquad)
@@ -116,8 +106,8 @@ function finite_element_matrix(
                 zzl = zz[l]
                 funcz = kernel_function(scale*zzl+shift)::Float64
                 matrix[i,j] += (scale*wz[l]*funcz*
-                           prefactor1*lagrange1(ith_lpoly_data,zzl)*
-                           prefactor2*lagrange2(jth_lpoly_data,zzl))
+                           lagrange1(ith_lpoly_data,zzl)*
+                           lagrange2(jth_lpoly_data,zzl))
             end
         end
     end
@@ -152,13 +142,9 @@ function finite_element_matrix(
     # the finite element array to be returned
     matrix = zeros(Float64,ngrid,ngrid,ngrid)
     # the function objects for the required polynomials
-    lagrange1 = select_lagrange_function(fn1_type)
-    lagrange2 = select_lagrange_function(fn2_type)
-    lagrange3 = select_lagrange_function(fn3_type)
-    # the normalisation factors due to v = scale * x + shift
-    prefactor1 = select_lagrange_prefactor(fn1_type,scale)
-    prefactor2 = select_lagrange_prefactor(fn2_type,scale)
-    prefactor3 = select_lagrange_prefactor(fn3_type,scale)
+    lagrange1 = select_lagrange_function(fn1_type,scale)
+    lagrange2 = select_lagrange_function(fn2_type,scale)
+    lagrange3 = select_lagrange_function(fn3_type,scale)
     # nquad chosen for exact results for all power, ngrid
     nquad = 2*ngrid + additional_quadrature_points
     zz, wz = gausslegendre(nquad)
@@ -177,9 +163,9 @@ function finite_element_matrix(
                     zzl = zz[l]
                     funcz = kernel_function(scale*zzl+shift)::Float64
                     matrix[i,j,k] += (scale*wz[l]*funcz*
-                            prefactor1*lagrange1(ith_lpoly_data,zzl)*
-                            prefactor2*lagrange2(jth_lpoly_data,zzl)*
-                            prefactor3*lagrange3(kth_lpoly_data,zzl))
+                            lagrange1(ith_lpoly_data,zzl)*
+                            lagrange2(jth_lpoly_data,zzl)*
+                            lagrange3(kth_lpoly_data,zzl))
                 end
             end
         end
@@ -229,15 +215,11 @@ function finite_element_matrix(
     # the finite element array to be returned
     matrix = zeros(Float64,ngrid_x1,ngrid_x2,ngrid_x1,ngrid_x2)
     # the function objects for the required polynomials
-    lagrange11 = select_lagrange_function(fn1_x1_type)
-    lagrange12 = select_lagrange_function(fn1_x2_type)
-    lagrange21 = select_lagrange_function(fn2_x1_type)
-    lagrange22 = select_lagrange_function(fn2_x2_type)
+    lagrange11 = select_lagrange_function(fn1_x1_type,scale_x1)
+    lagrange12 = select_lagrange_function(fn1_x2_type,scale_x2)
+    lagrange21 = select_lagrange_function(fn2_x1_type,scale_x1)
+    lagrange22 = select_lagrange_function(fn2_x2_type,scale_x2)
     # the normalisation factors due to v = scale * x + shift
-    prefactor11 = select_lagrange_prefactor(fn1_x1_type,scale_x1)
-    prefactor12 = select_lagrange_prefactor(fn1_x2_type,scale_x2)
-    prefactor21 = select_lagrange_prefactor(fn2_x1_type,scale_x1)
-    prefactor22 = select_lagrange_prefactor(fn2_x2_type,scale_x2)
     # nquad chosen for exact results
     nquad_x1 = ngrid_x1 + additional_quadrature_points_x1
     zz_x1, wz_x1 = gausslegendre(nquad_x1)
@@ -259,13 +241,13 @@ function finite_element_matrix(
                     for lx2 in 1:nquad_x2
                         zzl2 = zz_x2[lx2]
                         wgt2 = scale_x2*wz_x2[lx2]
-                        lagrange_factor2 = (prefactor12*lagrange12(ix2_lpoly_data,zzl2)*
-                                               prefactor22*lagrange22(jx2_lpoly_data,zzl2))
+                        lagrange_factor2 = (lagrange12(ix2_lpoly_data,zzl2)*
+                                               lagrange22(jx2_lpoly_data,zzl2))
                         for lx1 in 1:nquad_x1
                             zzl1 = zz_x1[lx1]
                             wgt1 = scale_x1*wz_x1[lx1]
-                            lagrange_factor1 = (prefactor11*lagrange11(ix1_lpoly_data,zzl1)*
-                                               prefactor21*lagrange21(jx1_lpoly_data,zzl1))
+                            lagrange_factor1 = (lagrange11(ix1_lpoly_data,zzl1)*
+                                               lagrange21(jx1_lpoly_data,zzl1))
                             kernel_x1_x2 = kernel_function(scale_x1*zzl1+shift_x1,
                                                         scale_x2*zzl2+shift_x2)::Float64
                             matrix[ix1,ix2,jx1,jx2] += (wgt1*wgt2*kernel_x1_x2*
