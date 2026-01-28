@@ -61,6 +61,12 @@ function select_lagrange_function(fn_type::LagrangeFunctionType,scale::Float64)
     return func
 end
 
+function check_power(power::Int64, varname::String)
+    if power < 0
+        error("Require power > 0, whereas $varname=$power was passed")
+    end
+    return nothing
+end
 # Method for p-adaptive quadrature in 1D and 2D.
 # Note that the the rate at which the number of quadrature
 # points is increased is the same for each coordinate.
@@ -101,6 +107,7 @@ function finite_element_matrix(
     power::Int64,
     coordinate::ElementCoordinates
     )
+    check_power(power, "power")
     return _finite_element_matrix(fn1_type, fn2_type, coordinate;
                 kernel_function=((v -> v^power)),
                 additional_quadrature_points=power)
@@ -161,6 +168,7 @@ function finite_element_matrix(
     power::Int64,
     coordinate::ElementCoordinates
     )
+    check_power(power, "power")
     return _finite_element_matrix(fn1_type, fn2_type, fn3_type,
                 coordinate; kernel_function=((v -> v^power)),
                 additional_quadrature_points=power)
@@ -230,6 +238,8 @@ function finite_element_matrix(
     power_x2::Int64,
     coordinate_x2::ElementCoordinates
     )
+    check_power(power_x1, "power_x1")
+    check_power(power_x2, "power_x2")
     return _finite_element_matrix(fn1_x1_type, fn2_x1_type, coordinate_x1,
                 fn1_x2_type, fn2_x2_type, coordinate_x2;
                 kernel_function=((v1,v2) -> (v1^power_x1)*(v2^power_x2)),
