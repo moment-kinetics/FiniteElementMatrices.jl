@@ -61,18 +61,53 @@ function select_lagrange_function(fn_type::LagrangeFunctionType,scale::Float64)
     return func
 end
 
+# Method for p-adaptive quadrature in 1D and 2D.
+# Note that the the rate at which the number of quadrature
+# points is increased is the same for each coordinate.
+function finite_element_matrix(args...;
+    atol=1.0e-12::Float64, rtol=1.0e-12::Float64, max_iterations=1::Int64,
+    quadrature_increment=5::Int64, kwargs...)
+    matrix = _finite_element_matrix(args...;
+                adaptive_quadrature_points=0,
+                kwargs...)
+    iteration = 0
+    maxvalue = maximum(abs.(matrix))
+    maxerr = maxvalue
+    while iteration < max_iterations && maxerr > atol + rtol*maxvalue
+        # increment the iteration
+        iteration += 1
+        matrixnew = _finite_element_matrix(args...;
+                        adaptive_quadrature_points=quadrature_increment*iteration,
+                        kwargs...)
+        maxvalue = maximum(abs.(matrixnew))
+        maxerr = maximum(abs.(matrixnew .- matrix))
+        # update the matrix
+        matrix .= matrixnew
+    end
+    if maxerr > atol + rtol*maxvalue && max_iterations > 0
+        error("Unable to achieve specified error bounds: \n
+              maxerr < atol + rtol*maxvalue \n
+              after max_iterations = $max_iterations with atol=$atol and rtol=$rtol we obtain \n
+              maxerr = $maxerr > $atol + $rtol*$maxvalue")
+    end
+    return matrix
+end
+
+# Method for computing polynomial integrals exactly
+# for matrices with two Lagrange polymomials in 1D
 function finite_element_matrix(
     fn1_type::LagrangeFunctionType,
     fn2_type::LagrangeFunctionType,
     power::Int64,
     coordinate::ElementCoordinates
     )
-    return finite_element_matrix(fn1_type, fn2_type, coordinate;
+    return _finite_element_matrix(fn1_type, fn2_type, coordinate;
                 kernel_function=((v -> v^power)),
                 additional_quadrature_points=power)
 end
 
-function finite_element_matrix(
+# The basic method for matrices with two Lagrange polymomials in 1D
+function _finite_element_matrix(
     fn1_type::LagrangeFunctionType,
     fn2_type::LagrangeFunctionType,
     coordinate::ElementCoordinates;
@@ -80,6 +115,8 @@ function finite_element_matrix(
     # rather than of the reference coordinate z on [-1,1]
     kernel_function=((v -> 1.0))::Function,
     additional_quadrature_points=0::Int64,
+    # argument to permit single implementation of
+    adaptive_quadrature_points=0::Int64
     )
     lpoly_data = coordinate.lpoly_data
     ngrid = length(coordinate.lpoly_data.x_nodes)
@@ -92,7 +129,7 @@ function finite_element_matrix(
     lagrange2 = select_lagrange_function(fn2_type,scale)
     # nquad chosen for exact results for default inputs
     # with kernel = 1.0 and zero additional quadrature points
-    nquad = ngrid + additional_quadrature_points
+    nquad = ngrid + additional_quadrature_points + adaptive_quadrature_points
     zz, wz = gausslegendre(nquad)
     # compute integral
     # int P_i(z) Q_j(z) poly(z) s d z
@@ -115,6 +152,8 @@ function finite_element_matrix(
     return matrix
 end
 
+# Method for computing polynomial integrals exactly
+# for matrices with three Lagrange polymomials in 1D
 function finite_element_matrix(
     fn1_type::LagrangeFunctionType,
     fn2_type::LagrangeFunctionType,
@@ -122,11 +161,13 @@ function finite_element_matrix(
     power::Int64,
     coordinate::ElementCoordinates
     )
-    return finite_element_matrix(fn1_type, fn2_type, fn3_type,
+    return _finite_element_matrix(fn1_type, fn2_type, fn3_type,
                 coordinate; kernel_function=((v -> v^power)),
                 additional_quadrature_points=power)
 end
-function finite_element_matrix(
+
+# The basic method for matrices with three Lagrange polymomials in 2D
+function _finite_element_matrix(
     fn1_type::LagrangeFunctionType,
     fn2_type::LagrangeFunctionType,
     fn3_type::LagrangeFunctionType,
@@ -135,6 +176,7 @@ function finite_element_matrix(
     # rather than of the reference coordinate z on [-1,1]
     kernel_function=((v -> 1.0))::Function,
     additional_quadrature_points=0::Int64,
+    adaptive_quadrature_points=0::Int64
     )
     lpoly_data = coordinate.lpoly_data
     ngrid = length(coordinate.lpoly_data.x_nodes)
@@ -148,7 +190,7 @@ function finite_element_matrix(
     lagrange3 = select_lagrange_function(fn3_type,scale)
     # nquad chosen for exact results for default inputs
     # with kernel = 1.0 and zero additional quadrature points
-    nquad = 2*ngrid + additional_quadrature_points
+    nquad = 2*ngrid + additional_quadrature_points + adaptive_quadrature_points
     zz, wz = gausslegendre(nquad)
     # compute integral
     # int P_i(z) Q_j(z) S_k(z) poly(z) d z
@@ -175,6 +217,9 @@ function finite_element_matrix(
     return matrix
 end
 
+# Method for computing polynomial integrals exactly
+# for matrices with two 2D basis functions
+# (two Lagrange polymomials per coordinate) in 2D
 function finite_element_matrix(
     fn1_x1_type::LagrangeFunctionType,
     fn2_x1_type::LagrangeFunctionType,
@@ -185,13 +230,16 @@ function finite_element_matrix(
     power_x2::Int64,
     coordinate_x2::ElementCoordinates
     )
-    return finite_element_matrix(fn1_x1_type, fn2_x1_type, coordinate_x1,
+    return _finite_element_matrix(fn1_x1_type, fn2_x1_type, coordinate_x1,
                 fn1_x2_type, fn2_x2_type, coordinate_x2;
                 kernel_function=((v1,v2) -> (v1^power_x1)*(v2^power_x2)),
                 additional_quadrature_points_x1=power_x1,
                 additional_quadrature_points_x2=power_x2)
 end
-function finite_element_matrix(
+
+# Basic method for computing matrices with two 2D basis functions
+# (two Lagrange polymomials per coordinate) in 2D
+function _finite_element_matrix(
     fn1_x1_type::LagrangeFunctionType,
     fn2_x1_type::LagrangeFunctionType,
     coordinate_x1::ElementCoordinates,
@@ -203,6 +251,7 @@ function finite_element_matrix(
     kernel_function=((v1,v2) -> 1.0)::Function,
     additional_quadrature_points_x1=0::Int64,
     additional_quadrature_points_x2=0::Int64,
+    adaptive_quadrature_points=0::Int64
     )
     # coordinate x1 data
     lpoly_data_x1 = coordinate_x1.lpoly_data
@@ -224,9 +273,9 @@ function finite_element_matrix(
     # the normalisation factors due to v = scale * x + shift
     # nquad chosen for exact results for default inputs
     # with kernel = 1.0 and zero additional quadrature points
-    nquad_x1 = ngrid_x1 + additional_quadrature_points_x1
+    nquad_x1 = ngrid_x1 + additional_quadrature_points_x1 + adaptive_quadrature_points
     zz_x1, wz_x1 = gausslegendre(nquad_x1)
-    nquad_x2 = ngrid_x2 + additional_quadrature_points_x2
+    nquad_x2 = ngrid_x2 + additional_quadrature_points_x2 + adaptive_quadrature_points
     zz_x2, wz_x2 = gausslegendre(nquad_x2)
     # compute integral
     # \int \int \left(P1_i(z_1) Q1_j(z_1) P2_i(z_1) Q2_j(z_2)
