@@ -90,7 +90,8 @@ function finite_element_matrix(
     # the function objects for the required polynomials
     lagrange1 = select_lagrange_function(fn1_type,scale)
     lagrange2 = select_lagrange_function(fn2_type,scale)
-    # nquad chosen for exact results for all power, ngrid
+    # nquad chosen for exact results for default inputs
+    # with kernel = 1.0 and zero additional quadrature points
     nquad = ngrid + additional_quadrature_points
     zz, wz = gausslegendre(nquad)
     # compute integral
@@ -145,7 +146,8 @@ function finite_element_matrix(
     lagrange1 = select_lagrange_function(fn1_type,scale)
     lagrange2 = select_lagrange_function(fn2_type,scale)
     lagrange3 = select_lagrange_function(fn3_type,scale)
-    # nquad chosen for exact results for all power, ngrid
+    # nquad chosen for exact results for default inputs
+    # with kernel = 1.0 and zero additional quadrature points
     nquad = 2*ngrid + additional_quadrature_points
     zz, wz = gausslegendre(nquad)
     # compute integral
@@ -220,7 +222,8 @@ function finite_element_matrix(
     lagrange21 = select_lagrange_function(fn2_x1_type,scale_x1)
     lagrange22 = select_lagrange_function(fn2_x2_type,scale_x2)
     # the normalisation factors due to v = scale * x + shift
-    # nquad chosen for exact results
+    # nquad chosen for exact results for default inputs
+    # with kernel = 1.0 and zero additional quadrature points
     nquad_x1 = ngrid_x1 + additional_quadrature_points_x1
     zz_x1, wz_x1 = gausslegendre(nquad_x1)
     nquad_x2 = ngrid_x2 + additional_quadrature_points_x2
