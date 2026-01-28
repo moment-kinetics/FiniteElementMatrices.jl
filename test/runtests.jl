@@ -436,7 +436,7 @@ function test_2D_linear_operators(;nodes::node_type=GLL,
             end
         end
     end
-    # test produces of 1D matrices for a simple separable Jacobian
+    # tests 2D matrices against products of 1D matrices for a simple separable Jacobian
     for l1A in (lagrange_x, d_lagrange_dx)
         for l1B in (lagrange_x, d_lagrange_dx)
             for l2A in (lagrange_x, d_lagrange_dx)
