@@ -436,6 +436,39 @@ function test_2D_linear_operators(;nodes::node_type=GLL,
             end
         end
     end
+    # test produces of 1D matrices for a simple separable Jacobian
+    for l1A in (lagrange_x, d_lagrange_dx)
+        for l1B in (lagrange_x, d_lagrange_dx)
+            for l2A in (lagrange_x, d_lagrange_dx)
+                for l2B in (lagrange_x, d_lagrange_dx)
+                    #1D matrices
+                    M_x1 .= finite_element_matrix(l1A,l1B,coordinate_x1;
+                                kernel_function=(x1 -> exp(-x1^2)), quadrature_increment=10,
+                                max_iterations=10, atol=1.0e-13, rtol=1.0e-13)
+                    M_x2 .= finite_element_matrix(l2A,l2B,coordinate_x2;
+                                kernel_function=(x2 -> exp(-x2^2)), quadrature_increment=10,
+                                max_iterations=10, atol=1.0e-13, rtol=1.0e-13)
+                    #2D matrices
+                    M_2D .= finite_element_matrix(l1A,l1B,coordinate_x1,
+                                                l2A,l2B,coordinate_x2;
+                                                kernel_function=((x1,x2)->exp(-x1^2 - x2^2)),
+                                                max_iterations=10, quadrature_increment=10,
+                                                atol=1.0e-13, rtol=1.0e-13)
+                    for i2 in 1:ngrid_x2
+                        for i1 in 1:ngrid_x1
+                            for j2 in 1:ngrid_x2
+                                for j1 in 1:ngrid_x1
+                                    M_2D_exact[j1,j2,i1,i2] = M_x1[j1,i1]*M_x2[j2,i2]
+                                end
+                            end
+                        end
+                    end
+                    @. M_2D_err = abs(M_2D-M_2D_exact)
+                    @test maximum(M_2D_err) < atol
+                end
+            end
+        end
+    end
     return nothing
 end
 
