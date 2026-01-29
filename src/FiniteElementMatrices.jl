@@ -79,7 +79,8 @@ function finite_element_matrix(args...;
     iteration = 0
     maxvalue = maximum(abs.(matrix))
     maxerr = maxvalue
-    while iteration < max_iterations && maxerr > atol + rtol*maxvalue
+    tolerance_exceeded = max_iterations > 0
+    while iteration < max_iterations && tolerance_exceeded
         # increment the iteration
         iteration += 1
         matrixnew = _finite_element_matrix(args...;
@@ -87,14 +88,18 @@ function finite_element_matrix(args...;
                         kwargs...)
         maxvalue = maximum(abs.(matrixnew))
         maxerr = maximum(abs.(matrixnew .- matrix))
+        tolerance_exceeded = maxerr > atol + rtol*maxvalue
         # update the matrix
         matrix .= matrixnew
     end
-    if verbose && !(maxerr > atol + rtol*maxvalue)
-        println(
-            "finite_element_matrix() converged after $iteration iterations \n with maxerr = $maxerr, adaptive_quadrature_points=$(quadrature_increment*iteration) \n")
+    if verbose && !(tolerance_exceeded)
+        if iteration > 0
+            println("finite_element_matrix() converged after $iteration iterations \n with maxerr = $maxerr, adaptive_quadrature_points=$(quadrature_increment*iteration) \n")
+        else
+            println("finite_element_matrix() returned a matrix without p-adaptive quadrature refinement.")
+        end
     end
-    if maxerr > atol + rtol*maxvalue && max_iterations > 0
+    if tolerance_exceeded
         error("Unable to achieve specified error bounds: \n
               maxerr < atol + rtol*maxvalue \n
               after max_iterations = $max_iterations with atol=$atol and rtol=$rtol we obtain \n
