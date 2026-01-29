@@ -72,7 +72,7 @@ end
 # points is increased is the same for each coordinate.
 function finite_element_matrix(args...;
     atol=1.0e-12::Float64, rtol=1.0e-12::Float64, max_iterations=1::Int64,
-    quadrature_increment=5::Int64, kwargs...)
+    quadrature_increment=5::Int64, verbose=false::Bool, kwargs...)
     matrix = _finite_element_matrix(args...;
                 adaptive_quadrature_points=0,
                 kwargs...)
@@ -89,6 +89,10 @@ function finite_element_matrix(args...;
         maxerr = maximum(abs.(matrixnew .- matrix))
         # update the matrix
         matrix .= matrixnew
+    end
+    if verbose && !(maxerr > atol + rtol*maxvalue)
+        println(
+            "finite_element_matrix() converged after $iteration iterations \n with maxerr = $maxerr, adaptive_quadrature_points=$(quadrature_increment*iteration) \n")
     end
     if maxerr > atol + rtol*maxvalue && max_iterations > 0
         error("Unable to achieve specified error bounds: \n
