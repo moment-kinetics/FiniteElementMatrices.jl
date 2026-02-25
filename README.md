@@ -3,7 +3,7 @@
 A package for computing unassembled matrices appearing in $`C^0`$ continuous Galerkin
 finite element models.
 
-# Methods
+# Matrices in one coordinate (1D)
 
 This package computes matrices of the following form.
 ```math
@@ -45,6 +45,10 @@ N_{ijk} = \int^{x_u}_{x_l} P_i(x) Q_j(x) R_k(x) \rho(x) d x = \int^{1}_{-1} S_i(
 where $`R_i(x)`$ may be either of $`\Phi(x)`$ or $`d\Phi/dx`$ and
 $`U_i(z)`$ may be either of $`l_i(z)`$ or $`(1/s)d l_i(z)/d z`$.
 
+# p-adaptive Gaussian quadrature
+
+In order to guarantee that the matrices $`A_{ij}`$ with non-polynomial kernels $`\rho(x)`$ are calculated with sufficient accuracy, we use p-adaptive quadrature with Gauss-Legendre quadrature rules from `FastGaussQuadrature` at each iteration. We iteratively calculate the matrices with an increasingly large number of quadrature points and iterate until the result is constant up to absolute and relative tolerances. The inputs used to control this process are described in the section on usage below. For polynomial kernels we can deduce the number of quadrature points for exact results, avoiding the need for the iterative calculation in the pure polynomial case.
+
 # Usage
 
 To create these matrices, the user must supply the key grid
@@ -74,6 +78,16 @@ we can use the following commands.
 using FiniteElementMatrices
 coordinate = ElementCoordinates(x,scale,shift)
 M = finite_element_matrix(lagrange_x,lagrange_x,0,coordinate)
+```
+Note that the order in which the `@enum` Lagrange polynomials are given corresponds to the indices of `M`. E.g., for a matrix describing a first derivative
+```
+l_i = lagrange_x
+l_j = d_lagrange_dx
+P = finite_element_matrix(l_i,l_j,0,coordinate)
+```
+the number `P[i,j]` corresponds to the matrix element
+```math
+P_{ij} = \int^{x_u}_{x_l} \Phi_i(x) \frac{d \Phi_j}{d x} d x.
 ```
 For a stiffness matrix describing a second derivative, we could
 use the following.
@@ -108,13 +122,36 @@ To specify an arbitrary kernel function $`\rho(x)`$, the following function call
 ```
 coordinate = ElementCoordinates(x,scale,shift)
 M = finite_element_matrix(lagrange_x,lagrange_x,coordinate,
-            kernel_function=(v -> rho(v)),additional_quadrature_points=n)
+            kernel_function=(v -> rho(v)),additional_quadrature_points=n,
+            quadrature_increment=m,
+            max_iterations=q, atol=atol, rtol=rtol)
 ```
-where we specify some function `rho(v)` to be the kernel, and we specify than `n` additional quadrature
-points should be used in addition to the number assumed from the size of the reference grid `x`.
-Note that `rho(v)` should be specified in terms of the physical coordinate including the scale and shift
-factors `v = scale * x + shift`, not in terms of the reference coordinate `x`.
+where we specify some function `rho(v)` to be the kernel, and we specify that we `n` additional quadrature
+points should be used in addition to the number assumed from the size of the reference grid `x`. If `q` is greater than zero, for each iteration we proceed to calculate the matrix again with a further additional `m` quadrature points, until the matrix is calculated to the specified absolute tolerance `atol` and relative tolerance `rtol`, or we call `error()` with an appropriate message for the user. Note that `rho(v)` should be specified in terms of the physical coordinate including the scale and shift factors `v = scale * x + shift`, not in terms of the reference coordinate `x`.
 
+# Matrices in two coordinates (2D)
+
+It is possible to write down weak forms where the multi-dimensional integrals do not separate into a product of one-dimensional integrals, even for a tensor-product basis. This occurs where the kernel is not a separable function, e.g., for the matrix
+```math
+K_{ikjn} = \int^{x_{2u}}_{x_{2l}}\int^{x_{1u}}_{x_{1l}} P_i(x_1) R_k(x_2) Q_j(x_1) S_n(x_2)\rho(x_1,x_2) d x_1 d x_2,
+```
+where $`P_i(x_1)`$, $`R_i(x_2)`$, $`Q_i(x_1)`$, $`S_i(x_2)`$ are from the set of Lagrange polynomials basis
+functions (and their first derivatives) in $`x_1`$ and $`x_2`$, respectively.
+
+The syntax that we use to create matrices in two coordinates is as follows
+```
+l_i = lagrange_x
+l_j = lagrange_x
+l_k = d_lagrange_dx
+l_n = d_lagrange_dx
+K_2D = finite_element_matrix(l_i,l_j,coordinate_x1,
+                            l_k,l_n,coordinate_x2;
+                            kernel_function=((x1,x2)->rho(x1,x2)),
+                            max_iterations=10, quadrature_increment=10,
+                            atol=1.0e-13, rtol=1.0e-13)
+```
+where we have two coordinates, `x1` (with polynomials `l_i` and `l_j`) and `x2` (with polynomials `l_k` and `l_n`). Note that the `@enum` variables used to select the Lagrange polynomials are the same between the two coordinates.
+The matrix created above is indexed in the order `K_2D[i,k,j,n]`, indexing over the first polynomial `l_i` of `x1`, then the first polynomial `l_k` of `x2`, then the second polynomial `l_j` of `x1` with the final index representing the polynomial `l_n` of `x2`. The same adaptive quadrature keyword arguments are used as in the 1D case.
 # Examples
 
 There are several examples of taking first and second derivatives
