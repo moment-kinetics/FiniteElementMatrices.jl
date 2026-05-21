@@ -71,8 +71,8 @@ end
 # Note that the the rate at which the number of quadrature
 # points is increased is the same for each coordinate.
 function finite_element_matrix(args...;
-    atol=1.0e-12::Float64, rtol=1.0e-12::Float64, max_iterations=1::Int64,
-    quadrature_increment=5::Int64, verbose=false::Bool, kwargs...)
+    atol::Float64=1.0e-12, rtol::Float64=1.0e-12, max_iterations::Int64=1,
+    quadrature_increment::Int64=5, verbose::Bool=false, kwargs...)
     matrix = _finite_element_matrix(args...;
                 adaptive_quadrature_points=0,
                 kwargs...)
@@ -129,11 +129,11 @@ function _finite_element_matrix(
     coordinate::ElementCoordinates;
     # function of the "physical" coord v = s z + c
     # rather than of the reference coordinate z on [-1,1]
-    kernel_function=((v -> 1.0))::Function,
-    additional_quadrature_points=0::Int64,
+    kernel_function::TFunction=((v -> 1.0)),
+    additional_quadrature_points::Int64=0,
     # argument to permit single implementation of
-    adaptive_quadrature_points=0::Int64
-    )
+    adaptive_quadrature_points::Int64=0
+    ) where TFunction
     lpoly_data = coordinate.lpoly_data
     ngrid = length(coordinate.lpoly_data.x_nodes)
     scale = coordinate.scale
@@ -191,10 +191,10 @@ function _finite_element_matrix(
     coordinate::ElementCoordinates;
     # function of the "physical" coord v = s z + c
     # rather than of the reference coordinate z on [-1,1]
-    kernel_function=((v -> 1.0))::Function,
-    additional_quadrature_points=0::Int64,
-    adaptive_quadrature_points=0::Int64
-    )
+    kernel_function::TFunction=((v -> 1.0)),
+    additional_quadrature_points::Int64=0,
+    adaptive_quadrature_points::Int64=0
+    ) where TFunction
     lpoly_data = coordinate.lpoly_data
     ngrid = length(coordinate.lpoly_data.x_nodes)
     scale = coordinate.scale
@@ -267,11 +267,11 @@ function _finite_element_matrix(
     coordinate_x2::ElementCoordinates;
     # function of the "physical" coord v = s z + c
     # rather than of the reference coordinate z on [-1,1]
-    kernel_function=((v1,v2) -> 1.0)::Function,
-    additional_quadrature_points_x1=0::Int64,
-    additional_quadrature_points_x2=0::Int64,
-    adaptive_quadrature_points=0::Int64
-    )
+    kernel_function::TFunction=((v1,v2) -> 1.0),
+    additional_quadrature_points_x1::Int64=0,
+    additional_quadrature_points_x2::Int64=0,
+    adaptive_quadrature_points::Int64=0
+    ) where TFunction
     # coordinate x1 data
     lpoly_data_x1 = coordinate_x1.lpoly_data
     ngrid_x1 = length(coordinate_x1.lpoly_data.x_nodes)
