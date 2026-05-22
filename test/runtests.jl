@@ -4,7 +4,8 @@ using Test: @testset, @test
 using FiniteElementMatrices: lagrange_x,
                              d_lagrange_dx,
                              finite_element_matrix,
-                             ElementCoordinates
+                             ElementCoordinates,
+                             GLSpecifiedLimits
 using FastGaussQuadrature: gausslobatto, gaussradau, gausslegendre
 using LinearAlgebra: lu, ldiv!, mul!
 
@@ -52,9 +53,9 @@ function test_first_derivative(;nodes::node_type=GLL,
     # check S_ij = P_ji to cover tests where
     # derivative acts on test function
     @test isapprox(S,transpose(P), atol=2.0e-15)
-    result = Array{Float64,1}(undef,ngrid) 
-    dummy = Array{Float64,1}(undef,ngrid) 
-    err = Array{Float64,1}(undef,ngrid)  
+    result = Array{Float64,1}(undef,ngrid)
+    dummy = Array{Float64,1}(undef,ngrid)
+    err = Array{Float64,1}(undef,ngrid)
     # function to test
     f = Array{Float64,1}(undef,ngrid)
     df = Array{Float64,1}(undef,ngrid)
@@ -96,9 +97,9 @@ function test_first_derivative_nonlinear_operators(
     # check Y100_ijk = Y001_kji
     @test isapprox(permutedims(Y100, [3,2,1]),Y001,atol=2.0e-15)
     # check that a first derivative can be carried out with Y100
-    result = Array{Float64,1}(undef,ngrid) 
+    result = Array{Float64,1}(undef,ngrid)
     dummy = Array{Float64,1}(undef,ngrid)
-    err = Array{Float64,1}(undef,ngrid)  
+    err = Array{Float64,1}(undef,ngrid)
     # function to test
     f = Array{Float64,1}(undef,ngrid)
     df = Array{Float64,1}(undef,ngrid)
@@ -135,14 +136,14 @@ function test_second_derivative(;nodes::node_type=GLL,
     M = finite_element_matrix(lagrange_x,lagrange_x,0,coordinate)
     S = -finite_element_matrix(d_lagrange_dx,lagrange_x,0,coordinate)
     K = -finite_element_matrix(d_lagrange_dx,d_lagrange_dx,0,coordinate)
-    result = Array{Float64,1}(undef,ngrid) 
-    dummy = Array{Float64,1}(undef,ngrid) 
-    err = Array{Float64,1}(undef,ngrid)  
+    result = Array{Float64,1}(undef,ngrid)
+    dummy = Array{Float64,1}(undef,ngrid)
+    err = Array{Float64,1}(undef,ngrid)
     # function to test
     f = Array{Float64,1}(undef,ngrid)
     df = Array{Float64,1}(undef,ngrid)
     d2f = Array{Float64,1}(undef,ngrid)
-    # to test the weak first derivative, 
+    # to test the weak first derivative,
     # choose a fn that vanishes at x = +-1
     # to avoid including boundary terms
     for i in 1:ngrid
@@ -150,19 +151,19 @@ function test_second_derivative(;nodes::node_type=GLL,
         f[i] = sin(pi*(y-shift)/scale)
         df[i] = (pi/scale)*cos(pi*(y-shift)/scale)
     end
-    
+
     # test the performance of a first derivative
-    # taken using the "weak" methods via 
+    # taken using the "weak" methods via
     # integration by parts
     luM = lu(M)
     mul!(dummy,S,f)
     ldiv!(result,luM,dummy)
-    
+
     @. err = result - df
     maxerr = maximum(abs.(err))
     @test maxerr < atol
-    
-    # to test the weak second derivative, 
+
+    # to test the weak second derivative,
     # choose a fn that where the derivative vanishes at x = +-1
     # to avoid including boundary terms
     for i in 1:ngrid
@@ -171,14 +172,14 @@ function test_second_derivative(;nodes::node_type=GLL,
         d2f[i] = -((pi/scale)^2)*cos(pi*(y-shift)/scale)
     end
     # test the performance of a second derivative
-    # taken using the "weak" methods via 
+    # taken using the "weak" methods via
     # integration by parts
     mul!(dummy,K,f)
     ldiv!(result,luM,dummy)
     @. err = result - d2f
     maxerr = maximum(abs.(err))
     @test maxerr < atol
-    
+
 end
 
 function test_nonlinear_operators(;nodes::node_type=GLL,
@@ -195,9 +196,9 @@ function test_nonlinear_operators(;nodes::node_type=GLL,
     Y100 = finite_element_matrix(d_lagrange_dx,lagrange_x,lagrange_x,0,coordinate)
     Y010 = finite_element_matrix(lagrange_x,d_lagrange_dx,lagrange_x,0,coordinate)
     Y001 = finite_element_matrix(lagrange_x,lagrange_x,d_lagrange_dx,0,coordinate)
-    result = Array{Float64,1}(undef,ngrid) 
+    result = Array{Float64,1}(undef,ngrid)
     dummy = Array{Float64,1}(undef,ngrid)
-    err = Array{Float64,1}(undef,ngrid)  
+    err = Array{Float64,1}(undef,ngrid)
     # function to test
     f = Array{Float64,1}(undef,ngrid)
     u = Array{Float64,1}(undef,ngrid)
@@ -328,6 +329,62 @@ function test_nonpolynomial_kernel(;nodes::node_type=GLL,
     maxerr = maximum(abs.(err))
     @test maxerr < atol
     #println(maxerr)
+end
+
+function test_limited_integration_range(;nodes::node_type=GLL,
+                            ngrid::Int64=5,
+                            y0::Float64=-1.1,
+                            y1::Float64=1.3,
+                            atol::Float64=2.0e-13)
+    x = reference_nodes(nodes,ngrid)
+    scale = 0.5*(y1-y0)
+    shift = 0.5*(y0+y1)
+    coordinate = ElementCoordinates(x,scale,shift)
+    # midpoint splitting the integral
+    ymid = y0 + (1.0/3.0)*(y1 - y0)
+    # test of operators with two polynomials
+    M_total = finite_element_matrix(lagrange_x,lagrange_x,0,coordinate)
+    M_lower_range = finite_element_matrix(lagrange_x,lagrange_x,coordinate,quadrature_option=GLSpecifiedLimits(y0,ymid))
+    M_upper_range = finite_element_matrix(lagrange_x,lagrange_x,coordinate,quadrature_option=GLSpecifiedLimits(ymid,y1))
+    M_err = deepcopy(M_total)
+    # test the total matches the exact result
+    @. M_err = M_total - M_lower_range - M_upper_range
+    maxerr = maximum(abs.(M_err))
+    #println(maxerr)
+    @test maxerr < atol
+
+    # test of operators with three polynomials
+    M_nl_total = finite_element_matrix(lagrange_x,lagrange_x,lagrange_x,0,coordinate)
+    M_nl_lower_range = finite_element_matrix(lagrange_x,lagrange_x,lagrange_x,coordinate,quadrature_option=GLSpecifiedLimits(y0,ymid))
+    M_nl_upper_range = finite_element_matrix(lagrange_x,lagrange_x,lagrange_x,coordinate,quadrature_option=GLSpecifiedLimits(ymid,y1))
+    M_nl_err = deepcopy(M_nl_total)
+    # test the total matches the exact result
+    @. M_nl_err = M_nl_total - M_nl_lower_range - M_nl_upper_range
+    maxerr_nl = maximum(abs.(M_nl_err))
+    #println(maxerr_nl)
+    @test maxerr_nl < atol
+
+    # test of 2D operators with two polynomials
+    M2D_total = finite_element_matrix(lagrange_x,lagrange_x,0,coordinate,
+                                    lagrange_x,lagrange_x,0,coordinate)
+    M2D_range1 = finite_element_matrix(lagrange_x,lagrange_x,coordinate,
+                    lagrange_x,lagrange_x,coordinate,
+                    quadrature_option_x1=GLSpecifiedLimits(y0,ymid), quadrature_option_x2=GLSpecifiedLimits(y0,ymid))
+    M2D_range2 = finite_element_matrix(lagrange_x,lagrange_x,coordinate,
+                    lagrange_x,lagrange_x,coordinate,
+                    quadrature_option_x1=GLSpecifiedLimits(ymid,y1), quadrature_option_x2=GLSpecifiedLimits(y0,ymid))
+    M2D_range3 = finite_element_matrix(lagrange_x,lagrange_x,coordinate,
+                    lagrange_x,lagrange_x,coordinate,
+                    quadrature_option_x1=GLSpecifiedLimits(y0,ymid), quadrature_option_x2=GLSpecifiedLimits(ymid,y1))
+    M2D_range4 = finite_element_matrix(lagrange_x,lagrange_x,coordinate,
+                    lagrange_x,lagrange_x,coordinate,
+                    quadrature_option_x1=GLSpecifiedLimits(ymid,y1), quadrature_option_x2=GLSpecifiedLimits(ymid,y1))
+    M2D_err = deepcopy(M2D_total)
+    # test the total matches the exact result
+    @. M2D_err = M2D_total - M2D_range1 - M2D_range2 - M2D_range3 - M2D_range4
+    maxerr_2D = maximum(abs.(M2D_err))
+    #println(maxerr_2D)
+    @test maxerr_2D < atol
 end
 
 function test_nonlinear_operator_nonpolynomial_kernel(;nodes::node_type=GLL,
@@ -514,7 +571,7 @@ function runtests()
                                     y0 = -0.5, y1=1.0,
                                     ngrid=n)
         end
-        
+
         println("test nonlinear operators:")
         for nodes in nodes_list
             n = 25
@@ -540,6 +597,12 @@ function runtests()
             println("    -- test: $(nodes) ngrid_x1=4 ngrid_x2=5 poly")
             test_2D_linear_operators(;nodes=nodes,
                 ngrid_x1=4, ngrid_x2=5, atol=1.0e-13)
+        end
+
+        println("test limited integration range:")
+        for nodes in nodes_list
+            println("    -- test: $(nodes) ngrid=5 poly")
+            test_limited_integration_range(;nodes = nodes, ngrid=5)
         end
     end
 end
