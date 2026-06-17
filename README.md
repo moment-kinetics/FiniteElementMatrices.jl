@@ -152,6 +152,39 @@ K_2D = finite_element_matrix(l_i,l_j,coordinate_x1,
 ```
 where we have two coordinates, `x1` (with polynomials `l_i` and `l_j`) and `x2` (with polynomials `l_k` and `l_n`). Note that the `@enum` variables used to select the Lagrange polynomials are the same between the two coordinates.
 The matrix created above is indexed in the order `K_2D[i,k,j,n]`, indexing over the first polynomial `l_i` of `x1`, then the first polynomial `l_k` of `x2`, then the second polynomial `l_j` of `x1` with the final index representing the polynomial `l_n` of `x2`. The same adaptive quadrature keyword arguments are used as in the 1D case.
+
+# Integration limits
+
+For some function inputs $`\rho(x)`$, the domain over which $`\rho(x)`$ is nonzero may not coincide with the element limits $`[x_l, x_u]`$. To handle these cases efficiently with Gauss-Legendre quadrature points, we provide a 1D quadrature option `GLSpecifiedLimits(x_min, x_max)` which can limit the range of integration where necessary without introducing the need to define $`\rho(x)`$ where it is zero, e.g., with a Heaviside function. Note that the values `x_min` and `x_max` should be supplied in the physical coordinate normalisation for the coordinate $`x`$=`coordinate`, rather than in the reference normalisation on the reference domain $`[-1,1]`$ defined for each element. For example, for a $`\rho(x)`$ which is nonzero between $`[x_{-},x_{+}]`$ = `[x_min, x_max]`, we compute the integral
+```math
+A_{ij} = \int^{\textrm{min}(x_u,x_{+})}_{\textrm{max}(x_l,x_-)} P_i(x) Q_j(x) \rho(x) d x.
+```
+For the integral
+```math
+M_{ij} = \int^{\textrm{min}(x_u,x_{+})}_{\textrm{max}(x_l,x_-)} \Phi_i(x) \Phi_j(x) \rho(x) d x,
+```
+the corresponding syntax for the matrix element $`M_{ij}`$ is as follows.
+```
+finite_element_matrix(lagrange_x,lagrange_x,coordinate,
+    kernel_function=(x -> rho(x)),
+    quadrature_option=GLSpecifiedLimits(x_min,x_max))
+```
+For matrices of integrals in two dimensions, we use a similar syntax, as follows.
+```
+finite_element_matrix(lagrange_x,lagrange_x,x1_coordinate,
+                    lagrange_x,lagrange_x,x2_coordinate,
+                    kernel_function=((x1,x2)->rho(x1,x2)),
+                    quadrature_option_x1=GLSpecifiedLimits(x1_min,x1_max),
+                    quadrature_option_x2=GLSpecifiedLimits(x2_min,x2_max))
+```
+The default quadrature options for integrals in the range $`[x_{l},x_{u}]`$ are as follows.
+```
+quadrature_option=Default1DQuadrature()
+quadrature_option_x1=Default1DQuadrature()
+quadrature_option_x2=Default1DQuadrature()
+```
+
+
 # Examples
 
 There are several examples of taking first and second derivatives

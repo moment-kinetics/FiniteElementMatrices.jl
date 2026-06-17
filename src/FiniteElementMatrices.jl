@@ -11,11 +11,23 @@ using FastGaussQuadrature: gausslegendre
 export lagrange_x,
        d_lagrange_dx,
        finite_element_matrix,
-       ElementCoordinates
+       ElementCoordinates,
+       GLSpecifiedLimits
 
 @enum LagrangeFunctionType begin
     lagrange_x
     d_lagrange_dx
+end
+
+abstract type Abstract1DQuadrature end
+struct Default1DQuadrature <: Abstract1DQuadrature end
+struct GLSpecifiedLimits <: Abstract1DQuadrature
+    # minimum of range of integration
+    # in physical grid v = s x + c
+    # with x in [-1, 1]
+    v_min::Float64
+    # maximum of range of integration
+    v_max::Float64
 end
 
 struct ElementCoordinates
@@ -132,8 +144,9 @@ function _finite_element_matrix(
     kernel_function::TFunction=((v -> 1.0)),
     additional_quadrature_points::Int64=0,
     # argument to permit single implementation of
-    adaptive_quadrature_points::Int64=0
-    ) where TFunction
+    adaptive_quadrature_points::Int64=0,
+    quadrature_option::TQuad=Default1DQuadrature()
+    ) where {TFunction, TQuad <: Abstract1DQuadrature}
     lpoly_data = coordinate.lpoly_data
     ngrid = length(coordinate.lpoly_data.x_nodes)
     scale = coordinate.scale
@@ -146,7 +159,7 @@ function _finite_element_matrix(
     # nquad chosen for exact results for default inputs
     # with kernel = 1.0 and zero additional quadrature points
     nquad = ngrid + additional_quadrature_points + adaptive_quadrature_points
-    zz, wz = gausslegendre(nquad)
+    zz, wz = quadrature1D(quadrature_option,nquad,coordinate)
     # compute integral
     # int P_i(z) Q_j(z) poly(z) s d z
     # with poly(z) = (s z + c)^power
@@ -193,8 +206,9 @@ function _finite_element_matrix(
     # rather than of the reference coordinate z on [-1,1]
     kernel_function::TFunction=((v -> 1.0)),
     additional_quadrature_points::Int64=0,
-    adaptive_quadrature_points::Int64=0
-    ) where TFunction
+    adaptive_quadrature_points::Int64=0,
+    quadrature_option::TQuad=Default1DQuadrature(),
+    ) where {TFunction, TQuad <: Abstract1DQuadrature}
     lpoly_data = coordinate.lpoly_data
     ngrid = length(coordinate.lpoly_data.x_nodes)
     scale = coordinate.scale
@@ -208,7 +222,7 @@ function _finite_element_matrix(
     # nquad chosen for exact results for default inputs
     # with kernel = 1.0 and zero additional quadrature points
     nquad = 2*ngrid + additional_quadrature_points + adaptive_quadrature_points
-    zz, wz = gausslegendre(nquad)
+    zz, wz = quadrature1D(quadrature_option,nquad,coordinate)
     # compute integral
     # int P_i(z) Q_j(z) S_k(z) poly(z) d z
     # with poly(z) = (s z + c)^power
@@ -270,8 +284,12 @@ function _finite_element_matrix(
     kernel_function::TFunction=((v1,v2) -> 1.0),
     additional_quadrature_points_x1::Int64=0,
     additional_quadrature_points_x2::Int64=0,
-    adaptive_quadrature_points::Int64=0
-    ) where TFunction
+    adaptive_quadrature_points::Int64=0,
+    quadrature_option_x1::TQuad1=Default1DQuadrature(),
+    quadrature_option_x2::TQuad2=Default1DQuadrature(),
+    ) where {TFunction,
+        TQuad1 <: Abstract1DQuadrature,
+        TQuad2 <: Abstract1DQuadrature}
     # coordinate x1 data
     lpoly_data_x1 = coordinate_x1.lpoly_data
     ngrid_x1 = length(coordinate_x1.lpoly_data.x_nodes)
@@ -293,9 +311,9 @@ function _finite_element_matrix(
     # nquad chosen for exact results for default inputs
     # with kernel = 1.0 and zero additional quadrature points
     nquad_x1 = ngrid_x1 + additional_quadrature_points_x1 + adaptive_quadrature_points
-    zz_x1, wz_x1 = gausslegendre(nquad_x1)
+    zz_x1, wz_x1 = quadrature1D(quadrature_option_x1,nquad_x1,coordinate_x1)
     nquad_x2 = ngrid_x2 + additional_quadrature_points_x2 + adaptive_quadrature_points
-    zz_x2, wz_x2 = gausslegendre(nquad_x2)
+    zz_x2, wz_x2 = quadrature1D(quadrature_option_x2,nquad_x2,coordinate_x2)
     # compute integral
     # \int \int \left(P1_i(z_1) Q1_j(z_1) P2_i(z_1) Q2_j(z_2)
     # kernel(s_1 z_1 + c_1, s_2 z_2 + c_2) \right) s_1 s_2 d z_1 d z_2
@@ -331,6 +349,45 @@ function _finite_element_matrix(
         end
     end
     return matrix
+end
+
+function quadrature1D(::Default1DQuadrature, nquad::Int64, coordinate::ElementCoordinates)
+    # default quadrature running from [-1,1]
+    zz, wz = gausslegendre(nquad)
+    return zz, wz
+end
+function quadrature1D(qopt::GLSpecifiedLimits, nquad::Int64, coordinate::ElementCoordinates)
+    # limits specified for integration
+    v_min = qopt.v_min
+    v_max = qopt.v_max
+    # limits based on the range supported by the Lagrange polynomials
+    v_lower_limit = coordinate.shift - coordinate.scale
+    v_upper_limit = coordinate.shift + coordinate.scale
+    # some checks on the inputs
+    if !(v_min < v_upper_limit)
+        error("invalid integration range: v_min >= v_upper_limit")
+    elseif !(v_max > v_lower_limit)
+        error("invalid integration range: v_max =< v_lower_limit")
+    elseif !(v_min < v_max)
+        error("invalid integration range: v_min >= v_max")
+    end
+    # obtain valid limits of integration
+    # in the physical range [v_lower_limit,v_upper_limit]
+    v_min = max(v_min, v_lower_limit)
+    v_max = min(v_max, v_upper_limit)
+    # in the reference range [-1,1]
+    x_min = (v_min - coordinate.shift)/coordinate.scale
+    x_max = (v_max - coordinate.shift)/coordinate.scale
+    # default quadrature running from [-1,1]
+    zz, wz = gausslegendre(nquad)
+    # quadrature running from [x_min, x_max]
+    zx = zeros(Float64, nquad)
+    wx = zeros(Float64, nquad)
+    x_scale = 0.5*(x_max - x_min)
+    x_shift = 0.5*(x_max + x_min)
+    @. zx = x_scale*zz + x_shift
+    @. wx = x_scale*wz
+    return zx, wx
 end
 
 
